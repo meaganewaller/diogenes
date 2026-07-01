@@ -1,0 +1,57 @@
+# cli/ — the Go CLI (single binary, no runtime deps)
+# Inherits: go 1.22 from root
+
+[tools]
+go = "1.22"
+
+[env]
+CGO_ENABLED = "0"   # fully static binary for easy CI/CD distribution
+# GOOS/GOARCH intentionally not set here — let the host environment or
+# build:all task control them. Setting them via Tera default() causes
+# template parse errors in some mise versions.
+
+# ── Tasks ──────────────────────────────────────────────────────────────────────
+
+[tasks.install]
+description = "Download Go module dependencies"
+run         = "go mod download"
+
+[tasks.build]
+description = "Build the diogenes binary for the current host platform"
+depends     = [":install"]
+run         = """
+mkdir -p bin
+go build \
+  -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev)" \
+  -o bin/diogenes \
+  ./cmd/diogenes
+"""
+
+[tasks."build:all"]
+description = "Cross-compile for linux/darwin × amd64/arm64"
+depends     = [":install"]
+run = """
+mkdir -p bin
+for os in linux darwin; do
+  for arch in amd64 arm64; do
+    echo "Building $os/$arch..."
+    GOOS=$os GOARCH=$arch go build \
+      -ldflags="-s -w" \
+      -o bin/diogenes-$os-$arch \
+      ./cmd/diogenes
+  done
+done
+"""
+
+[tasks.test]
+description = "Run Go tests"
+depends     = [":install"]
+run         = "go test ./... -v"
+
+[tasks.lint]
+description = "Lint with golangci-lint"
+run         = "golangci-lint run ./..."
+
+[tasks.lock]
+description = "Generate/update mise.lock for cli tools"
+run         = "mise lock"

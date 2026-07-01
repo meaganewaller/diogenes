@@ -1,0 +1,33 @@
+# examples/code-review — runnable demo of the code review agent
+# Inherits: python 3.12, uv, DIOGENES_DB from root
+
+[env]
+VIRTUAL_ENV = "{{config_root}}/.venv"
+_.path      = ["{{config_root}}/.venv/bin"]
+
+[tasks.install]
+description = "Install the diogenes SDK into the example venv"
+run         = """
+[ -d .venv ] || uv venv .venv --python 3.12
+uv pip install -e "../../sdk/python" --python .venv/bin/python
+"""
+
+[tasks.run]
+description = "Run the code review agent in simulation mode (no API key needed)"
+depends     = [":install"]
+run         = "python agent.py"
+
+[tasks."run:live"]
+description = "Run against the real Anthropic API — requires ANTHROPIC_API_KEY"
+depends     = [":install"]
+run         = "python agent.py --live"
+
+[tasks.traces]
+description = "List captured traces"
+depends     = [":install"]
+run         = "diogenes runs list"
+
+[tasks."traces:show"]
+description = "Show a specific trace: mise //examples/code-review:traces:show -- <run-id>"
+depends     = [":install"]
+run         = "diogenes runs show {{arg(name='run_id')}}"

@@ -1,0 +1,7 @@
+# spec/ — the canonical Diogenes OTel extension specification
+# No runtimes or tasks needed; this exists so spec/ is a valid monorepo config_root
+# and can have tasks added later (e.g. spec:validate, spec:publish).
+
+[tasks.validate]
+description = "Validate spec documents (lint markdown)"
+run         = "echo 'TODO: markdownlint spec/*.md'"

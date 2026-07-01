@@ -1,0 +1,60 @@
+# sdk/python — the diogenes-sdk Python package
+# Inherits: python 3.12, uv, DIOGENES_ENV from root
+
+[tools]
+python = "3.12"
+
+[env]
+VIRTUAL_ENV = "{{config_root}}/.venv"
+_.path      = ["{{config_root}}/.venv/bin"]
+
+# ── Tasks ──────────────────────────────────────────────────────────────────────
+
+[tasks.install]
+description = "Create venv (if needed) and install all dependencies including dev"
+run         = """
+[ -d .venv ] || uv venv .venv --python 3.12
+uv pip install -e ".[dev]" --python .venv/bin/python
+"""
+
+[tasks.test]
+description = "Run the full test suite"
+depends     = [":install"]
+run         = "pytest tests/ -v --tb=short"
+
+[tasks."test:unit"]
+description = "Unit tests only (fast, no IO)"
+depends     = [":install"]
+run         = "pytest tests/unit/ -v"
+
+[tasks."test:integration"]
+description = "Integration tests (runs a real agent loop)"
+depends     = [":install"]
+run         = "pytest tests/integration/ -v"
+
+[tasks.lint]
+description = "Ruff lint + type-check with mypy"
+depends     = [":install"]
+run         = """
+ruff check src/ tests/
+mypy src/diogenes/ --ignore-missing-imports
+"""
+
+[tasks.fmt]
+description = "Auto-format with ruff"
+depends     = [":install"]
+run         = "ruff format src/ tests/"
+
+[tasks.build]
+description = "Build sdist + wheel"
+depends     = [":lint", ":test"]
+run         = "python -m build --outdir dist/"
+
+[tasks.publish]
+description = "Publish to PyPI (CI only)"
+depends     = [":build"]
+run         = "twine upload dist/*"
+
+[tasks.lock]
+description = "Generate/update mise.lock for sdk/python tools"
+run         = "mise lock"

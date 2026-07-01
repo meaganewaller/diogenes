@@ -1,0 +1,65 @@
+[build-system]
+requires      = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name        = "diogenes-sdk"
+version     = "0.1.0"
+description = "Honest testing for agentic systems"
+readme      = "README.md"
+license     = "Apache-2.0"
+requires-python = ">=3.11"
+keywords    = ["llm", "agents", "testing", "observability", "opentelemetry"]
+
+dependencies = [
+    "opentelemetry-api>=1.20",
+    "opentelemetry-sdk>=1.20",
+    "click>=8.1",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.25"]
+otlp      = ["opentelemetry-exporter-otlp-proto-grpc>=1.20"]
+all       = ["diogenes-sdk[anthropic,otlp]"]
+dev       = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+    "build",
+    "twine",
+    "anthropic>=0.25",   # needed for integration tests
+]
+
+[project.scripts]
+diogenes = "diogenes.cli:main"
+
+# src/ layout — prevents accidental imports from repo root during dev
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ── Ruff ──────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # line length handled by formatter
+
+# ── Pytest ────────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths    = ["tests"]
+addopts      = "--tb=short -q"
+log_cli      = true
+log_cli_level = "WARNING"
+
+# ── Mypy ──────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version    = "3.11"
+strict            = false
+ignore_missing_imports = true

@@ -1,0 +1,28 @@
+# integrations/openai — thin adapter making OpenAI clients emit diogenes spans
+# Inherits: python 3.12, uv from root
+
+[env]
+VIRTUAL_ENV = "{{config_root}}/.venv"
+_.path      = ["{{config_root}}/.venv/bin"]
+
+[tasks.install]
+description = "Install integration + dev deps"
+run         = """
+[ -d .venv ] || uv venv .venv --python 3.12
+uv pip install -e ".[dev]" --python .venv/bin/python
+"""
+
+[tasks.test]
+description = "Run integration tests"
+depends     = [":install"]
+run         = "pytest tests/ -v"
+
+[tasks.lint]
+description = "Lint"
+depends     = [":install"]
+run         = "ruff check src/ tests/"
+
+[tasks.build]
+description = "Build wheel"
+depends     = [":test"]
+run         = "python -m build --outdir dist/"

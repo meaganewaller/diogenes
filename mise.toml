@@ -1,0 +1,94 @@
+# Diogenes monorepo root
+# https://mise.en.dev/tasks/monorepo.html
+monorepo_root = true
+
+[monorepo]
+config_roots = [
+    "sdk/python",
+    "cli",
+    "integrations/openai",
+    "examples/code-review",
+    "spec",
+]
+
+# ── Lockfile ───────────────────────────────────────────────────────────────────
+# Enables mise.lock for reproducible tool versions. Propagates to all
+# subpackages since this is the monorepo root.
+# Run `mise run lock` to generate/update all lockfiles.
+# Commit mise.lock; gitignore mise.local.lock (see .gitignore).
+ 
+[settings]
+lockfile = true
+
+# ── Shared runtimes ────────────────────────────────────────────────────────────
+
+[tools]
+python = "3.12"
+go    = "1.22"
+uv    = "latest"
+
+# ── Monorepo note — local Python package dependencies ─────────────────────────
+# uv does not search the local filesystem for packages by default.
+# Any subpackage that depends on another local package (e.g. diogenes-sdk)
+# must declare it in its own pyproject.toml under [tool.uv.sources]:
+#
+#   [tool.uv.sources]
+#   diogenes-sdk = { path = "../../sdk/python", editable = true }
+#
+# See: https://docs.astral.sh/uv/concepts/workspaces/
+
+# ── Shared environment ─────────────────────────────────────────────────────────
+
+[env]
+DIOGENES_ENV = "development"
+DIOGENES_DB  = "{{config_root}}/.diogenes/traces.db"
+
+# Secrets live in .mise.local.toml (gitignored).
+# Template: ANTHROPIC_API_KEY = "sk-ant-..."
+
+# ── Root-level aggregate tasks ──────────────────────────────────────────────────
+# Use `depends` rather than `run = "mise '//...:task'"` — the glob matches
+# the root task itself and causes infinite recursion.
+
+[tasks.install]
+description = "Install all package dependencies"
+depends     = [
+    "//sdk/python:install",
+    "//cli:install",
+    "//integrations/openai:install",
+    "//examples/code-review:install",
+]
+
+[tasks.test]
+description = "Run tests across all packages"
+depends     = [
+    "//sdk/python:test",
+    "//cli:test",
+    "//integrations/openai:test",
+]
+
+[tasks.lint]
+description = "Lint all packages"
+depends     = [
+    "//sdk/python:lint",
+    "//cli:lint",
+    "//integrations/openai:lint",
+]
+
+[tasks.build]
+description = "Build all distributable packages"
+depends     = [
+    "//sdk/python:build",
+    "//cli:build",
+    "//integrations/openai:build",
+]
+
+
+[tasks.lock]
+description = "Generate/update mise.lock for root and all subpackages with tools"
+depends     = [
+    "//sdk/python:lock",
+    "//cli:lock",
+]
+# Lock root-level tools (python, go, uv) after subpackages complete
+run         = "mise lock"

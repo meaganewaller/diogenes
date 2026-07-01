@@ -1,0 +1,28 @@
+# mise
+.mise.local.toml
+mise.local.lock       # local tool overrides — never commit
+mise.*.local.lock     # env-specific local lockfiles
+
+# mise.lock is intentionally NOT ignored — commit it for reproducible envs
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Diogenes traces (opt-in to commit; see .diogenes/.gitignore)
+.diogenes/traces.db
+
+# Go
+cli/bin/
+
+# Editor
+.vscode/
+.idea/
+*.swp
