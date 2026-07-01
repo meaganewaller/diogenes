@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Lockfile drift check ─────────────────────────────────────────────────────
+  # Fails if someone edited a mise.toml [tools] block without running mise lock.
+  lockfile-check:
+    name: Lockfile drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          experimental: true   # required for lockfile support
+
+      - name: Regenerate lockfiles
+        run: mise run lock
+
+      - name: Fail on drift
+        run: |
+          git diff --exit-code mise.lock sdk/python/mise.lock cli/mise.lock \
+            || (echo "::error::Lockfiles are out of date. Run 'mise run lock' and commit the result." && exit 1)
+
+  # ── Python SDK ───────────────────────────────────────────────────────────────
+  sdk-python:
+    name: SDK / Python
+    runs-on: ubuntu-latest
+    needs: lockfile-check
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          experimental: true
+
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-sdk-python-${{ hashFiles('sdk/python/pyproject.toml') }}
+          restore-keys: uv-sdk-python-
+
+      - name: Install
+        run: mise run //sdk/python:install
+
+      - name: Lint
+        run: mise run //sdk/python:lint
+
+      - name: Test (unit)
+        run: mise run //sdk/python:test:unit
+
+      - name: Test (integration)
+        run: mise run //sdk/python:test:integration
+
+  # ── Go CLI ───────────────────────────────────────────────────────────────────
+  cli:
+    name: CLI / Go
+    runs-on: ubuntu-latest
+    needs: lockfile-check
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          experimental: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ hashFiles('cli/go.mod') }}
+          restore-keys: go-
+
+      - name: Install
+        run: mise run //cli:install
+
+      - name: Build
+        run: mise run //cli:build
+
+      - name: Test
+        run: mise run //cli:test
+
+  # ── OpenAI integration ───────────────────────────────────────────────────────
+  integrations-openai:
+    name: Integration / OpenAI
+    runs-on: ubuntu-latest
+    needs: lockfile-check
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          experimental: true
+
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-openai-${{ hashFiles('integrations/openai/pyproject.toml') }}
+          restore-keys: uv-openai-
+
+      - name: Install
+        run: mise run //integrations/openai:install
+
+      - name: Lint
+        run: mise run //integrations/openai:lint
+
+      - name: Test
+        run: mise run //integrations/openai:test
+
+  # ── Integration test with real API (main branch only) ───────────────────────
+  # Requires ANTHROPIC_API_KEY secret to be set in repo settings.
+  # Only runs on pushes to main, not on PRs (avoids API costs from forks).
+  live-agent:
+    name: Live agent smoke test
+    runs-on: ubuntu-latest
+    needs: [sdk-python]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          experimental: true
+
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-example-${{ hashFiles('sdk/python/pyproject.toml') }}
+          restore-keys: uv-example-
+
+      - name: Install
+        run: mise run //examples/code-review:install
+
+      - name: Run live agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: mise run //examples/code-review:run:live
